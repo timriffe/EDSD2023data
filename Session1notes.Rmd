@@ -1,0 +1,173 @@
+---
+title: "Session 1 Notes"
+author: "Tim Riffe"
+date: "2023-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Our module content will be created in improvised form right here inside Rmarkdown. I'm only going to share (on GitHub) the Rmd files (this very file), not the built document. The handouts will be available both as Rmd and as html and pdf.
+
+We can create an R chunk `Ctrl + Alt + i` creates an R chunk. On mac: `Cmnd + ption + i`
+```{r, include = FALSE}
+a <- runif(10)
+```
+
+Now here is some text
+
+```{r}
+a ^ 2
+```
+
+- Properties: R chunks are sequentially dependendent
+- You can execute with `Ctrl + Enter`, or with the little green arrow at the top right of the chunk.
+- You can re-run all prior code chunks with the middle button on the top right of the chunk.
+
+# tidy data
+
+Definition: a tidy dataset is a rectangular dataset with observations in rows and variables in columns. 
+
+A variable could be a key variable, meaning that in combination with other key variables it can identify an observation. Or maybe an observation is identified by an id variable. Or not at all, and we take on faith that rows refer to observations.
+
+Otherwise a variable (column) must be represent characteristics of the observations.
+
+## Not tidy data:
+
+- super-stacked data, where there is just one actual value column, often simply called 'value`. Example: DemoData (UN)
+
+- Lexis-like data, with years spread over columns
+
+- super-wide panel data (~200 health questions * 10 waves)
+
+## Basic `dplyr`
+
+```{r}
+#install.packages("gapminder")
+library(gapminder)
+gapminder
+```
+
+
+Exercise 1, make the Preston Curve.
+
+Note: `Ctrl Shift m` makes a pipe (`Cmnd Shift m` on Mac)
+```{r}
+library(tidyverse)
+gapminder |> # %>% same
+  ggplot(aes(x = gdpPercap, y = lifeExp)) +
+  geom_point(alpha = .2) +
+  scale_x_log10()
+```
+
+Unfortunately we need to skip ggplot material in class, but you can find it in the handout for today. 
+
+## `dplyr` concepts
+
+### `filter()`
+```{r}
+gapminder |> 
+  filter(year == max(year))
+# also respects groups (example: Vaupel-Oeppen line)
+gapminder |> 
+  group_by(year) |> 
+  filter(lifeExp == max(lifeExp)) |> 
+  ggplot(aes(x = year, y = lifeExp)) +
+  geom_point(mapping = aes(color = country)) +
+  geom_smooth(method = "lm")
+```
+
+### `select()`
+
+Negative selections (best to use column names, but you can use position as well)
+```{r}
+gapminder |> 
+  select(-continent) 
+```
+
+Positive selections must be exhaustive. You can also rename as you list things.
+```{r}
+gapminder |> 
+  select(country, year, e0 = lifeExp)
+
+# check:
+gapminder |> 
+  select(country, year, lifeExp) |> 
+  rename(e0 = lifeExp)
+```
+
+### `mutate()` is for creating or modifying columns
+
+```{r}
+library(countrycode)
+gapminder |> 
+  mutate(iso3 = countrycode(country, 
+                            origin = "country.name.en",
+                            destination = "iso3c")) #|> 
+  # filter(is.na(iso3)) # Check for failures
+```
+
+```{r, eval = FALSE}
+codelist |> View()
+```
+
+Often we want to use `mutate()` on groups in the data:
+
+```{r}
+gapminder |> 
+  group_by(country) |> 
+  mutate(pop_change = lead(pop) - pop)
+```
+
+Here we have a data operation that is sequentially dependent but only within groups, which are strictly independent of one another. So the first difference doesn't accidentally span between countries.
+
+### `summarize()` is for aggregation steps. This could be summing, but it could be anything else too, anything that reduces the data.
+
+```{r}
+gapminder |> 
+  group_by(continent, year) |> 
+  summarize(pop = sum(pop))
+```
+
+Did you notice the annoying but informative message that prints to the console with the above code? It tells you that the grouping has changed due to the summarize operation. Better yet, just tell summarize to drop groups when done and avoid that message:
+```{r}
+gapminder |> 
+  group_by(continent, year) |> 
+  summarize(pop = sum(pop),
+            .groups = "drop")
+```
+
+
+However, sometimes we want to use aggregates (summarize -things) in relation to our original data. Example: calculate each country as a fraction of the continent size (in the data)
+
+```{r}
+gapminder |> 
+  group_by(continent, year) |> 
+  mutate(pop_cont = sum(pop)) |> 
+  ungroup() |> # remove groups because no longer needed
+  mutate(pop_frac = pop / pop_cont)
+```
+
+This was our longest pipeline so far.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Including Plots
