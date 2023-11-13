@@ -9,6 +9,7 @@ author: |
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
 date: "13 Nov, 2023"
 output:
+  pdf_document: default 
   html_document:
     number_sections: yes
     toc: no
@@ -16,7 +17,7 @@ params:
   output_dir: "../EDSD2023data/docs"
 header-includes:
 - \usepackage{titling}
-- \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=6cm, ]{assets/MPIDR_square_color.pdf}\\[\bigskipamount]}
+- \pretitle{\begin{center}\includegraphics[trim=0 0 0 8cm, width=12cm, ]{assets/opik_upv_ikerbasque_logo_strip.pdf}\\[\bigskipamount]}
 - \posttitle{\end{center}}
 bibliography: references.bib
 ---
