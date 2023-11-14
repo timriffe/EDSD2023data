@@ -17,8 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # 
 # download.file(url = data_link, destfile = "Data/blabla")
 
-library(R.utils)
-gzip("Data/Nat2022us/Nat2022us.txt")
+#library(R.utils)
+#gzip("Data/Nat2022us/Nat2022us.txt")
 ```
 
 In class, we manually downloaded the file, unpacked it, and then g-zipped it using the above line of code. This all took a while because the file is sort of big. We took some care to delete redundant versions of this file because one day our hard-drive might fill up and we'd then need to hunt it down.
@@ -216,10 +216,66 @@ b_to_plot |>
        title = "Boy births are born heavier than girl births")
 ```
 
+Wow, this is a nice clear age pattern, we can maybe accentuate it by limiting the x-range a bit:
+
+```{r}
+b_to_plot |> 
+  ggplot(aes(x = bwt, 
+             y = factor(mage),
+             height = prop,
+             fill = sex)) +
+  geom_ridgeline(scale = 20,
+         alpha = .4) +
+  theme_minimal() +
+  labs(y = "mothers' age",
+       x = "birth weight (grams)",
+       title = "Boy births are born heavier than girl births") +
+  xlim(1000,5000)
+```
 
 
+Let's plot the age patterns of mean and sd birth weight, again by sex assigned at birth. For this, I rethought the pre-processing a bit: we keep single ages of mother for a clearer picture. I use "lifetable" shorthand tricks to calculate the mean and sd of birthweight (meaning you could do similar tricks using dx in a lifetable).
 
+```{r}
+b_weight <-
+  B |> 
+  select(mage, sex, bwt) |> 
+  count(mage, sex, bwt) |> 
+  complete(mage, sex, bwt,fill = list(n=0)) |> 
+  group_by(mage, sex) |> 
+  mutate(unk = n[bwt == 9999]) |> 
+  filter(bwt != 9999) |> 
+  mutate(births = n + unk * n / sum(n),
+         frac = births / sum(births),
+         bwt_mid = bwt + .5) |> 
+  summarize(mean_bwt = sum(bwt_mid * frac),
+            var_bwt = sum(frac * (bwt_mid - mean_bwt)^2),
+            sd_bwt = sqrt(var_bwt),
+            .groups = "drop")
 
+```
+
+First mean pattern
+```{r}
+b_weight |> 
+  ggplot(aes(x = mage, y = mean_bwt, color = sex)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "mean weight at birth is covex over mother age",
+       subtitle = "boys are about 100 grams heavier than girl births on average",
+       caption = "but don't forget the underlying distributions are HEAVILY overlapped")
+```
+
+```{r}
+b_weight |> 
+  ggplot(aes(x = mage, y = sd_bwt, color = sex)) +
+  geom_line() +
+    theme_minimal() +
+  labs(title = "mean birth weight is concave over mother age",
+       subtitle = "boys have greater variation in birth weight")
+```
+
+Do you think the same patterns would be so stark if we instead stratified in age of father? Would they be just the same but spread wider over ages? Hard to know unless you calculate and see it for yourself!
 
 
 
