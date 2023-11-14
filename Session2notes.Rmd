@@ -73,17 +73,18 @@ The task: redistribute births whose age of father is unknown or unstated (99) ac
 
 In practice, you need to manage to convert the counts of "knowns" into a distribution (meaning that it sums to 1) and multiply that distribution into the total count of unknowns.
 ```{r}
-
 B |> 
   count(fage) |> 
   mutate(unk = n[fage == 99]) |> 
   filter(fage != 99) |> 
   mutate(prop = n / sum(n)) |>  
-  # pull(prop) |> sum()
+  # pull(prop) |> sum() # quick check that sums to 1
+  
+  # quick plot of the distribution we use:
   # ggplot(aes(x = fage, y = prop)) +
   # geom_line()
   mutate(unk_x = prop * unk,
-         births = n + unk_x) 
+         births = n + unk_x) # the final adjustment
 ```
 
 
