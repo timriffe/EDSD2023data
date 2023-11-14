@@ -87,6 +87,146 @@ B |>
          births = n + unk_x) # the final adjustment
 ```
 
+Exercise: redo this re-distribution of unknown father age conditional on mother age. What needs to change in the code to handle this?
+
+First, the only thing that needs to change in order to re-condition this whole operation is to 1. include `mage` in the `count()` and 2. apply a `group_by(mage)` before we get roll'n.
+```{r}
+
+Bages <-
+  B |> 
+  count(fage, mage) |>
+  group_by(mage) |> 
+  mutate(unk = n[fage == 99]) |> 
+  filter(fage != 99) |> 
+  mutate(prop = n / sum(n)) |>  
+  mutate(unk_x = prop * unk,
+         births = n + unk_x)  |> 
+  ungroup() 
+
+```
+
+# impute 0s where they belong:
+
+Here we fill the gaps; when we tabulate microdata there will always be unobserved combinations of variables. Sometimes we want those variable combinations represented with 0s. That requires an extra step:
+```{r}
+
+Bages |> pull(fage) |> range()
+all_fages <- 10:98 # the complete fage vector with no gaps
+Bages |> 
+  select(mage, fage, births) |> 
+  complete(mage, 
+           fage = all_fages, 
+           fill = list(births = 0))
+```
+
+plot it!
+
+```{r}
+library(colorspace)
+hcl_palettes(plot = TRUE)
+Bages |> 
+  ggplot(aes(x = fage, y = mage, fill = log(births))) +
+  geom_tile() +
+  coord_equal() +
+  scale_fill_continuous_sequential("Red-Purple") +
+  theme_minimal()+
+  geom_abline(slope = 1, incercept = 0)
+```
+
+# grouping ages
+
+To group ages (of counts), redefine the age bins. Here I use a modulo trick (subtract the remainder after dividing out the desired age interval evenly). Then it's a standard `group_by |> summarize()` operation.
+```{r}
+# 0:20 - 0:20 %% 5
+
+Bages |> 
+  mutate(mage = mage - mage %% 2,
+         fage = fage - fage %% 2) |> 
+  group_by(mage, fage) |> 
+  summarize(births = sum(births))
+```
+
+# Exercise
+
+Your task is to create a ridge plot (`ggridges` package) of birth weight, where ridgelines are defined by 5-year age groups of mothers. For each ridgeline there are 2 distributions: one for boy births and the other for girl births. Each distribution needs to sum to 1 because we're interested to see whether the distribution appears to change over age and if there are apparent differences by sex assigned at birth (including imputed).
+
+Data prep that will need to:
+- bin mother ages
+- tabulate by mage, sex, bwt
+- redistribute missing birth weights (9999)
+- rescale mage-sex-specific birth weight distributions to sum to 1
+
+```{r}
+b_to_plot <-
+B |> 
+  select(mage, sex, bwt) |> 
+  
+  # 1. define 5-year age bins
+  mutate(mage = mage - mage %% 5) |> 
+  
+  # 2. perform tabulation
+  count(mage, sex, bwt) |> 
+  
+  # 3. impute 0s where needed
+  complete(mage, sex, bwt, fill = list(n = 0)) |> 
+  
+  # 4. declare groups
+  group_by(mage, sex) |> 
+  
+  # 5. move unk values to new column
+  mutate(unk = n[bwt == 9999]) |> 
+  
+  # 6. remove the unk row
+  filter(bwt != 9999) |> 
+  
+  # 7. perform (conditional) redistribution
+  #    and calculate proportions
+  mutate(births = n + unk * n / sum(n),
+         prop = births / sum(births)) |> 
+  ungroup() |> 
+  # quick check of distribution: is it spiked on even numbers??
+  # group_by(bwt) |> 
+  # summarize(births = sum(births)) |> 
+  # ggplot(aes(x = bwt,y=births)) +
+  # geom_line()
+  # 
+  
+  # 8. I'll group birth weight
+  mutate(bwt = bwt - bwt %% 50) |> 
+  group_by(mage, sex, bwt) |> 
+  summarize(prop = sum(prop), .groups = "drop")
+
+b_to_plot
+```
+
+Now plot it:
+
+```{r}
+library(ggridges)
+b_to_plot |> 
+  ggplot(aes(x = bwt, 
+             y = factor(mage),
+             height = prop,
+             fill = sex)) +
+  geom_ridgeline(scale = 20,
+         alpha = .4) +
+  theme_minimal() +
+  labs(y = "mothers' age",
+       x = "birth weight (grams)",
+       title = "Boy births are born heavier than girl births")
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
