@@ -1,0 +1,75 @@
+---
+title: "Session 3 notes"
+author: "Tim Riffe"
+date: "2023-11-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## reshaping
+
+`pivot_longer()` stacks some variables, usually creating one or more "name" columns and usually one value column. It will almost always result in more rows and less columns.
+
+`pivot_wider()` unstacks data, distributing it over columns in some systematic way, for example spreading years over columns.
+
+```{r}
+library(gapminder)
+
+gapminder |> 
+  pivot_longer(c(lifeExp, pop, gdpPercap), 
+               names_to = "variable", 
+               values_to = "value") |> 
+  pivot_wider(names_from = "variable", values_from = "value")
+```
+
+What if we have some sort of hierarchical structure that's distributed over the columns? How do do `pivot_longer()` to lots of variables at once?
+
+This is the brute force approach that will never fail you; The strategy is to pivot to super long, manage columns (if needed), then pivot wider with just one `names_from` column.
+```{r}
+gapminder |> 
+  pivot_wider(names_from = "year", 
+              values_from = c("lifeExp", "pop", "gdpPercap")) |> 
+  pivot_longer(lifeExp_1952:gdpPercap_2007, 
+               #names_to = c("variable", "year"),
+               names_to = "variable_year",
+               values_to = "value") |>  #,
+               #names_sep = "_")
+  separate(variable_year, 
+           into = c("variable", "year"),
+           sep = "_", 
+           convert = TRUE) |> 
+  pivot_wider(names_from = "variable", values_from = "value")
+```
+
+But there is a way to handle the above `pivot_longer()` scenario in fewer steps. Actually `pivot_longer()` can handle all these steps at once. The trick is to specifiy `names_to` as a vector with two parts: `".value"` stands for the various column names, which need to be extracted from the knarly concatenated names you currently have, and then you use `names_sep` to specify the separator. Hopefully you have such as a separator.
+
+```{r}
+gapminder |> 
+  pivot_wider(names_from = "year", 
+              values_from = c("lifeExp", "pop", "gdpPercap")) |> 
+  # a one-liner "pivot_longer() to multiple columns"
+  pivot_longer(lifeExp_1952:gdpPercap_2007,
+               names_to = c(".value","year"),
+               names_sep = "_")
+```
+
+# HRS data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
