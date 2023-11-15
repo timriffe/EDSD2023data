@@ -100,28 +100,39 @@ Now time to the time 1 and time 2 health observations. To get two consecutive in
 Then we need to create a new outcome (destination state) for the `disab_to` variable that is death. Deaths aren't coded inside the health variabels themselves; we need to get that info elsewhere. We could have saved the info from the `iwstat` variable but we inadvertently threw it out with an earlier filter statement, shrug. However, we can capture deaths from the death date information (year and month). Problem: we need to actually convert them to proper dates! In the following code it's a 3-step process. HT Maria for pointing out that the `as_date()` conversion was slow mainly due to unneeded groups.
 
 ```{r}
-hrs2 |> 
+hrs3 <-
+  hrs2 |> 
   group_by(hhidpn) |> 
   mutate(disab_to = lead(disab_from)) |> 
   ungroup() |> 
   mutate(ddate = paste(radyear, radmonth, 15, sep = "-"),
          ddate = if_else(ddate == "NA-NA-15", NA, ddate),
          ddate = suppressWarnings(as_date(ddate)),
-         disab_to = case_when(!is.na(ddate) & ddate < (iwmid + (2 * 365)) ~ "Dead",
-                              TRUE ~ disab_to)
-   ) |> 
+         disab_to = case_when(
+           !is.na(ddate) & ddate < (iwmid + (2 * 365)) ~ "Dead",
+           TRUE ~ disab_to)) |> 
   filter(age > 50) |> 
   group_by(sex, age, disab_from, disab_to) |> 
   summarize(# transitions = sum(wtcrnh))
-    transitions = n()) |> 
+    transitions = n(),
+    .groups = "drop") |> 
+  # revisit this decision if you want to investigate forms of attrition.
   filter(disab_from != "Missing",
+         disab_to != "Missing",
+         # is.na(disab_to)
          !is.na(disab_to)) |> 
+  complete(sex, age, disab_from, disab_to, fill = list(transitions = 0)) |> 
   group_by(sex, age, disab_from) |> 
-  mutate(denom = sum(transitions))
-
-
+  mutate(denom = sum(transitions)) |> 
+  ungroup()
 ```
 
+Now we need to figure out denominators so that we can calculate transitions!
+
+```{r}
+hrs3 
+  
+```
 
 
 
