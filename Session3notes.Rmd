@@ -130,12 +130,94 @@ hrs3 <-
 Now we need to figure out denominators so that we can calculate transitions!
 
 ```{r}
-hrs3 
-  
+hrs3 |> 
+  mutate(p = transitions / denom,
+         p = if_else(is.nan(p), 0, p)) |> 
+  ggplot(aes(x = age, y = p, color = disab_to)) +
+  geom_line() +
+  facet_grid(vars(sex), vars(disab_from))
 ```
 
+New task: compare mortality with the HMD.
 
+```{r}
 
+hrs_mort <-
+  hrs3 |> 
+  mutate(p = transitions / denom,
+         p = if_else(is.nan(p), 0, p)) |> 
+  filter(disab_to == "Dead")
+```
+
+Grab HMD data from markdown, like so
+
+```{r, eval = FALSE}
+library(HMDHFDplus)
+mlt <- readHMDweb("USA", 
+                  "mltper_1x10", 
+                  username = Sys.getenv("us"),
+                  password = Sys.getenv("pw"))
+flt <- readHMDweb("USA", 
+                  "fltper_1x10", 
+                  username = Sys.getenv("us"),
+                  password = Sys.getenv("pw"))
+write_csv(mlt, file = "Data/mlt.csv")
+write_csv(flt, file = "Data/flt.csv")
+```
+
+```{r}
+flt <- read_csv("Data/flt.csv",
+                show_col_types = FALSE) |> 
+  filter(Year == 2000) |> 
+  mutate(sex = "Female", .before = 1)
+
+mlt <- read_csv("Data/mlt.csv",
+                show_col_types = FALSE)|> 
+  filter(Year == 2000)|> 
+  mutate(sex = "Male", .before = 1)
+
+hmd_comparison <-
+  bind_rows(flt, mlt) |> 
+  mutate(age = Age - Age %% 2) |> 
+  group_by(sex, age) |> 
+  summarize(dx = sum(dx),
+            lx = lx[1],
+            .groups = "drop") |> 
+  mutate(qx = dx / lx)
+```
+
+```{r}
+hmd_comparison |> 
+  filter(age >= 50) |> 
+  ggplot(aes(x = age, y = qx, color = sex)) +
+  geom_line()
+```
+
+```{r}
+hrs_mort <-
+  hrs_mort |> 
+  select(sex, age, disab_level = disab_from, qx = p) |> 
+  mutate(source = "HRS",
+         .before = 1)
+hmd_comparison <-
+  hmd_comparison |> 
+  select(sex, age, qx) |> 
+  mutate(source = "HMD",
+         disab_level = "general")
+
+hrs_mort_check <- hrs_mort |> bind_rows(hmd_comparison)
+```
+
+Now make the comparison plot:
+
+```{r}
+hrs_mort_check |> 
+  filter(between(age, 60, 95)) |> 
+  ggplot(aes(x = age, y = qx, color = disab_level))+
+  geom_line() +
+  facet_wrap(~sex) +
+  scale_y_log10()
+```
 
 
 
