@@ -60,6 +60,33 @@ gapminder |>
 
 
 
+```{r}
+library(tidyverse)
+library(lubridate)
+hrs <- read_csv("Data/hrs_subset_wide.csv.gz")
+
+dim(hrs)
+hrs |> 
+  pivot_longer(contains("_"),
+               names_to = c(".value", "wave"),
+               names_sep = "_") |> 
+  filter(!is.na(iwmid)) |> 
+  mutate(age = decimal_date(iwmid) - decimal_date(rabdate),
+         age = floor(age),
+         sex = if_else(ragender == 1, "Male", "Female"),
+         .after = rabdate) |> 
+  select(-ragender) |> 
+  mutate(disab_from = 
+           case_when(iadla == 0 & adla == 0 ~ "Healthy",
+                     adla > 0 ~ "Severe",
+                     iadla > 0 ~ "Mild",
+                     TRUE ~ "Missing")
+           ) |> 
+  select(-slfmem, -iadla, -adla)
+  
+```
+
+
 
 
 
