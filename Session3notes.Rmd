@@ -65,17 +65,27 @@ library(tidyverse)
 library(lubridate)
 hrs <- read_csv("Data/hrs_subset_wide.csv.gz")
 
-dim(hrs)
-hrs |> 
+hrs2 <-
+  hrs |> 
+  # collect waves into a variable, 
+  # keeping value variables separate
   pivot_longer(contains("_"),
                names_to = c(".value", "wave"),
                names_sep = "_") |> 
+  # remove invalid interviews
   filter(!is.na(iwmid)) |> 
-  mutate(age = decimal_date(iwmid) - decimal_date(rabdate),
+  # create age and recode sex,
+  # possibly you need to coerce dates from character?
+  mutate(#iwmid = as_date(iwmid),
+         #rabdate = as_date(rabdate),
+         age = decimal_date(iwmid) - decimal_date(rabdate),
          age = floor(age),
          sex = if_else(ragender == 1, "Male", "Female"),
+         # where to make the new columns:
          .after = rabdate) |> 
+  # remove unneeded columns to reduce clutter
   select(-ragender) |> 
+  # health variable recode with mroe than 2 categories:
   mutate(disab_from = 
            case_when(iadla == 0 & adla == 0 ~ "Healthy",
                      adla > 0 ~ "Severe",
@@ -83,9 +93,34 @@ hrs |>
                      TRUE ~ "Missing")
            ) |> 
   select(-slfmem, -iadla, -adla)
-  
 ```
 
+Now time to the time 1 and time 2 health observations. To get two consecutive interviews side-by-side we use `lead()` (opposite of `lag()`). That has to be grouped on indivuad ids because its a within-individual data operation (we don't want health status jumping between individuals).
+
+Then we need to create a new outcome (destination state) for the `disab_to` variable that is death. Deaths aren't coded inside the health variabels themselves; we need to get that info elsewhere. We could have saved the info from the `iwstat` variable but we inadvertently threw it out with an earlier filter statement, shrug. However, we can capture deaths from the death date information (year and month). Problem: we need to actually convert them to proper dates! In the following code it's a 3-step process. HT Maria for pointing out that the `as_date()` conversion was slow mainly due to unneeded groups.
+
+```{r}
+hrs2 |> 
+  group_by(hhidpn) |> 
+  mutate(disab_to = lead(disab_from)) |> 
+  ungroup() |> 
+  mutate(ddate = paste(radyear, radmonth, 15, sep = "-"),
+         ddate = if_else(ddate == "NA-NA-15", NA, ddate),
+         ddate = suppressWarnings(as_date(ddate)),
+         disab_to = case_when(!is.na(ddate) & ddate < (iwmid + (2 * 365)) ~ "Dead",
+                              TRUE ~ disab_to)
+   ) |> 
+  filter(age > 50) |> 
+  group_by(sex, age, disab_from, disab_to) |> 
+  summarize(# transitions = sum(wtcrnh))
+    transitions = n()) |> 
+  filter(disab_from != "Missing",
+         !is.na(disab_to)) |> 
+  group_by(sex, age, disab_from) |> 
+  mutate(denom = sum(transitions))
+
+
+```
 
 
 
