@@ -15,11 +15,11 @@ Eurostat SRH
 ```{r}
 library(tidyverse)
 library(countrycode)
+library(readxl)
+
 health <- read_csv("Data/hlth_silc_02_linear.csv.gz",
                    show_col_types = FALSE)
-health
-health$levels |> unique()
-health$unit |> unique()
+
 ages_keep <-
      c("Y16-24","Y25-34", "Y35-44", "Y45-54",
        "Y55-64","Y65-74","Y75-84","Y_GE85")
@@ -58,6 +58,7 @@ We'll use this to expand the 10-year age groups to single ages using a join tech
 
 
 ```{r}
+
 health_expanded <- 
   health2 |> 
   right_join(age_table, 
@@ -85,7 +86,7 @@ WPP single-age data, scripted download failed due to choppy wifi
 # keep iso3 
 # pivot longer the ages
 # create sex variable
-library(readxl)
+
 
 Fem <-
   read_excel("Data/WPP2022_POP_F01_3_POPULATION_SINGLE_AGE_FEMALE.xlsx",
@@ -121,7 +122,7 @@ The Eurostat health data will take care of the filtering when we do the join. No
 Bind together the UN estimates
 ```{r}
 wpp <- bind_rows(Fem, Male) |> 
-  mutate(age = as.integer(age),
+  mutate(age = parse_number(age),
          pop = as.numeric(pop) * 1000)
 
 ```
