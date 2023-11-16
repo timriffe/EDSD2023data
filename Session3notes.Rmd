@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 `pivot_wider()` unstacks data, distributing it over columns in some systematic way, for example spreading years over columns.
 
 ```{r}
+library(tidyverse)
 library(gapminder)
 
 gapminder |> 
@@ -58,13 +59,15 @@ gapminder |>
 
 # HRS data
 
-
-
+Due to a student request made back in Rostock, we will now work with panel data. We do this today because (1) we use some of the same tools from the previous lessons, and (2) we will use this neat `pivot_longer()` trick to do the fundamental reshaping.
 ```{r}
 library(tidyverse)
 library(lubridate)
-hrs <- read_csv("Data/hrs_subset_wide.csv.gz")
+hrs <- read_csv("Data/hrs_subset_wide.csv.gz",
+                show_col_types = FALSE)
 
+# This saves an intermediate data object, but we could join 
+# pipelines into
 hrs2 <-
   hrs |> 
   # collect waves into a variable, 
@@ -73,6 +76,10 @@ hrs2 <-
                names_to = c(".value", "wave"),
                names_sep = "_") |> 
   # remove invalid interviews
+  # This filter action might be too aggressive: the variable
+  # iwstat could indicate a death in the period, when iwmid is NA,
+  # but we'll capture this info later from death date info (not
+  # without risk). It would be rigorous to rethink this very step
   filter(!is.na(iwmid)) |> 
   # create age and recode sex,
   # possibly you need to coerce dates from character?
@@ -90,21 +97,25 @@ hrs2 <-
            case_when(iadla == 0 & adla == 0 ~ "Healthy",
                      adla > 0 ~ "Severe",
                      iadla > 0 ~ "Mild",
-                     TRUE ~ "Missing")
+                     TRUE ~ "Missing")# we end up throwing this out.
            ) |> 
   select(-slfmem, -iadla, -adla)
 ```
 
-Now time to the time 1 and time 2 health observations. To get two consecutive interviews side-by-side we use `lead()` (opposite of `lag()`). That has to be grouped on indivuad ids because its a within-individual data operation (we don't want health status jumping between individuals).
+Now time to the time 1 and time 2 health observations. To get two consecutive interviews side-by-side we use `lead()` (opposite of `lag()`). That has to be grouped on indivual ids because its a within-individual data operation (we don't want health status jumping between individuals).
 
 Then we need to create a new outcome (destination state) for the `disab_to` variable that is death. Deaths aren't coded inside the health variabels themselves; we need to get that info elsewhere. We could have saved the info from the `iwstat` variable but we inadvertently threw it out with an earlier filter statement, shrug. However, we can capture deaths from the death date information (year and month). Problem: we need to actually convert them to proper dates! In the following code it's a 3-step process. HT Maria for pointing out that the `as_date()` conversion was slow mainly due to unneeded groups.
 
+Again we interrupt the continuous pipeline by saving to `hrs3` for the sake of annotation.
 ```{r}
 hrs3 <-
   hrs2 |> 
   group_by(hhidpn) |> 
+  # pull up "next interview" to be next to "this interview"
+  # problem: deaths likely NAs, we need to eplicitly find them
   mutate(disab_to = lead(disab_from)) |> 
   ungroup() |> 
+  # find deaths using death date info, hackish solution.
   mutate(ddate = paste(radyear, radmonth, 15, sep = "-"),
          ddate = if_else(ddate == "NA-NA-15", NA, ddate),
          ddate = suppressWarnings(as_date(ddate)),
@@ -146,10 +157,14 @@ hrs_mort <-
   hrs3 |> 
   mutate(p = transitions / denom,
          p = if_else(is.nan(p), 0, p)) |> 
-  filter(disab_to == "Dead")
+  filter(disab_to == "Dead") |> 
+  # The rest of this is to harmonize with HMD columns
+  select(sex, age, disab_level = disab_from, qx = p) |> 
+  mutate(source = "HRS",
+         .before = 1)
 ```
 
-Grab HMD data from markdown, like so
+Grab HMD data from markdown, like so: this block can be run live, but the Rmd cannot be built if these functions are executed in the process of building. My strategy for including `HMDHFDplus` data grabs inside markdown is to rad the data in live in a chunk set to `eval = FALSE`, and then save it locally to a `csv` or similar. Then in the following chunk we read it in using `read_csv()`, and this chunk is executed when building.
 
 ```{r, eval = FALSE}
 library(HMDHFDplus)
@@ -165,6 +180,7 @@ write_csv(mlt, file = "Data/mlt.csv")
 write_csv(flt, file = "Data/flt.csv")
 ```
 
+Here take the HMD data locally, this chunk is executed automatically
 ```{r}
 flt <- read_csv("Data/flt.csv",
                 show_col_types = FALSE) |> 
@@ -175,40 +191,43 @@ mlt <- read_csv("Data/mlt.csv",
                 show_col_types = FALSE)|> 
   filter(Year == 2000)|> 
   mutate(sex = "Male", .before = 1)
-
-hmd_comparison <-
-  bind_rows(flt, mlt) |> 
-  mutate(age = Age - Age %% 2) |> 
-  group_by(sex, age) |> 
-  summarize(dx = sum(dx),
-            lx = lx[1],
-            .groups = "drop") |> 
-  mutate(qx = dx / lx)
 ```
 
+Now we need to "abridge" to two-year age groups, because our HRS death probabilities are in roughly 2-year age groups. Even when referring to the same age, probabilities over different reference periods (single year vs 2-year) will be on different scales and not directly comparable. That's why we need to do this transformation.
+
+```{r}
+hmd_comparison <-
+  bind_rows(flt, mlt) |> 
+  # first identify which 2-year age group the
+  mutate(age = Age - Age %% 2) |> 
+  group_by(sex, age) |> 
+  # sum dx in 2-year ages; take "lower" lx value
+  summarize(dx = sum(dx),
+            lx = lx[1], # first lx is the lower one.
+            .groups = "drop") |> 
+  # recalculate qx
+  mutate(qx = dx / lx)|> 
+  select(sex, age, qx) |> 
+  # add metadata for joining to HRS
+  mutate(source = "HMD",
+         disab_level = "general") |> 
+  filter(age >= 50)
+```
+What do the HMD data look like? In class I noted a strange discontinuity for males around ages 105-106 or so, and I simply must know what data processing artifact on the HMD-side of things accounts for this discontinuity. Namelt the single-year mx patterns should ALL be smooth, so how could a 10-year pattern *not* be smooth? This is literally the first time I've ever worked with the decade lifetables from HMD, isn't that funny?
 ```{r}
 hmd_comparison |> 
   filter(age >= 50) |> 
   ggplot(aes(x = age, y = qx, color = sex)) +
-  geom_line()
+  geom_line() +
+  scale_y_log10()
 ```
 
+We standardized column names and variable definitions, so we're good to merge with a simple row-bind. We do it this way, because I'll want separate lines, and these need to be mappable (`disab_level`).
 ```{r}
-hrs_mort <-
-  hrs_mort |> 
-  select(sex, age, disab_level = disab_from, qx = p) |> 
-  mutate(source = "HRS",
-         .before = 1)
-hmd_comparison <-
-  hmd_comparison |> 
-  select(sex, age, qx) |> 
-  mutate(source = "HMD",
-         disab_level = "general")
-
 hrs_mort_check <- hrs_mort |> bind_rows(hmd_comparison)
 ```
 
-Now make the comparison plot:
+Now make the comparison plot; we filter to ages 60-95 to not be distracted by the random noise outside these ages.
 
 ```{r}
 hrs_mort_check |> 
@@ -219,10 +238,10 @@ hrs_mort_check |>
   scale_y_log10()
 ```
 
+Not bad!, we see the general-population mortality falling between the health-specific mortality, and we see the general population move from health to unhealthy mortality gradually over age, just as we'd image the prevalence-weighted average to do. This is an illustration of one of Vaupel's Ruses <https://www.jstor.org/stable/pdf/2683925.pdf>, but found out in nature.
 
-
-
-
+# regarding the HRS data
+Now, you can save data items `hrs3` if you want, or `hrs_comparison`, but I'll ask you to to delete the file `hrs_subset_wide.csv.gz` from your computer, as it should not be shared, and anyway, if you ever wanted to do something serious with this data you'd want to take advantage of more variables in it.
 
 
 
