@@ -1,0 +1,143 @@
+---
+title: "Session 4 Notes"
+author: "Tim Riffe"
+date: "2023-11-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Merging
+
+Eurostat SRH
+```{r}
+library(tidyverse)
+library(countrycode)
+health <- read_csv("Data/hlth_silc_02_linear.csv.gz",
+                   show_col_types = FALSE)
+health
+health$levels |> unique()
+health$unit |> unique()
+ages_keep <-
+     c("Y16-24","Y25-34", "Y35-44", "Y45-54",
+       "Y55-64","Y65-74","Y75-84","Y_GE85")
+
+health2 <- 
+  health |> 
+  filter(age %in% ages_keep,
+         isced11 == "TOTAL",
+         levels == "VBAD") |> 
+  select(eurostat_code = geo,
+         age_fat = age,
+         sex,
+         year = TIME_PERIOD,
+         prev = OBS_VALUE) |> 
+  mutate(age_fat = parse_number(age_fat),
+         iso3 = suppressWarnings(countrycode(eurostat_code,
+                            origin = "eurostat",
+                            destination = "iso3c")),
+         prev = prev / 100) |> 
+  filter(!is.na(iso3))
+```
+
+Now let's expand the health data to single ages, assuming a step function
+```{r}
+# single_ages <- 16:85
+# single_ages - (single_ages + 5) %% 10  
+
+age_table <- tibble(age_fat = c(rep(16, 9),
+                                rep(seq(25, 85, by = 10),
+                                    each = 10)),
+       age = 16:94) |> 
+  filter(age <= 85)
+```
+
+We'll use this to expand the 10-year age groups to single ages using a join technique (in the end left or right )
+
+
+```{r}
+health_expanded <- 
+  health2 |> 
+  right_join(age_table, 
+             by = join_by(age_fat),
+             relationship = "many-to-many") |> 
+  select(-eurostat_code,
+         -age_fat)
+```
+
+WPP single-age data, scripted download failed due to choppy wifi
+```{r}
+# download.file(
+# "https://population.un.org/wpp/Download/Files/1_Indicators%20(Standard)/EXCEL_FILES/2_Population/WPP2022_POP_F01_2_POPULATION_SINGLE_AGE_MALE.xlsx",
+#      destfile = "Data/WPP2022_POP_F01_2_POPULATION_SINGLE_AGE_MALE.xlsx")
+# download.file(
+# "https://population.un.org/wpp/Download/Files/1_Indicators%20(Standard)/EXCEL_FILES/2_Population/WPP2022_POP_F01_3_POPULATION_SINGLE_AGE_FEMALE.xlsx",
+#      destfile = "Data/WPP2022_POP_F01_3_POPULATION_SINGLE_AGE_FEMALE.xlsx")
+# 
+```
+
+* Some people were able to fully download either the male or female
+
+```{r}
+# skip 16 rows
+# keep iso3 
+# pivot longer the ages
+# create sex variable
+library(readxl)
+
+Fem <-
+  read_excel("Data/WPP2022_POP_F01_3_POPULATION_SINGLE_AGE_FEMALE.xlsx",
+           skip = 16,
+           guess_max = 1e5) |> 
+  pivot_longer(`0`:`100+`, 
+               names_to = "age", 
+               values_to = "pop") |> 
+  select(iso3 = `ISO3 Alpha-code`,
+         year = Year,
+         age,
+         pop) |> 
+  filter(!is.na(iso3)) |> 
+  mutate(sex = "F")
+
+Male <-
+  read_excel("Data/WPP2022_POP_F01_2_POPULATION_SINGLE_AGE_MALE.xlsx",
+           skip = 16,
+           guess_max = 1e5) |> 
+  pivot_longer(`0`:`100+`, 
+               names_to = "age", 
+               values_to = "pop") |> 
+  select(iso3 = `ISO3 Alpha-code`,
+         year = Year,
+         age,
+         pop) |> 
+  filter(!is.na(iso3)) |> 
+  mutate(sex = "M")
+```
+
+The Eurostat health data will take care of the filtering when we do the join. Note, when we read it in using just default column class detection you'll be overwhelmed with warnings. By default it guesses column types by checking the first 1000 values, but this data doesn't reveal all classes within that range. Just increase `guess_max` sot aht it gets more info to guess classes. HT Maria for the tip, my strategy would have been to explicitly state column types, but that would be arduous for this data.
+
+Bind together the UN estimates
+```{r}
+wpp <- bind_rows(Fem, Male) |> 
+  mutate(age = as.integer(age),
+         pop = as.numeric(pop) * 1000)
+
+```
+
+```{r}
+health_burden <- 
+  health_expanded |> 
+  inner_join(wpp, by = join_by(iso3, year, sex, age)) |> 
+  mutate(vbad_count = prev * pop)
+
+health_burden |> 
+  filter(iso3 == "FRA",
+         year == 2010) |> 
+  ggplot(aes(x = age, y = vbad_count, color = sex, group = sex)) +
+  geom_line()
+
+
+```
+
