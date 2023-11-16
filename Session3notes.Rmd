@@ -102,7 +102,7 @@ hrs2 <-
   select(-slfmem, -iadla, -adla)
 ```
 
-Now time to the time 1 and time 2 health observations. To get two consecutive interviews side-by-side we use `lead()` (opposite of `lag()`). That has to be grouped on indivual ids because its a within-individual data operation (we don't want health status jumping between individuals).
+Now time to the time 1 and time 2 health observations. To get two consecutive interviews side-by-side we use `lead()` (opposite of `lag()`). That has to be grouped on individual ids because its a within-individual data operation (we don't want health status jumping between individuals).
 
 Then we need to create a new outcome (destination state) for the `disab_to` variable that is death. Deaths aren't coded inside the health variabels themselves; we need to get that info elsewhere. We could have saved the info from the `iwstat` variable but we inadvertently threw it out with an earlier filter statement, shrug. However, we can capture deaths from the death date information (year and month). Problem: we need to actually convert them to proper dates! In the following code it's a 3-step process. HT Maria for pointing out that the `as_date()` conversion was slow mainly due to unneeded groups.
 
@@ -132,7 +132,11 @@ hrs3 <-
          disab_to != "Missing",
          # is.na(disab_to)
          !is.na(disab_to)) |> 
-  complete(sex, age, disab_from, disab_to, fill = list(transitions = 0)) |> 
+  # plug in 0s where they are needed
+  complete(sex, age, disab_from, disab_to, 
+           fill = list(transitions = 0)) |> 
+  
+  # now we can tabulate denominators
   group_by(sex, age, disab_from) |> 
   mutate(denom = sum(transitions)) |> 
   ungroup()
@@ -206,7 +210,7 @@ hmd_comparison <-
             lx = lx[1], # first lx is the lower one.
             .groups = "drop") |> 
   # recalculate qx
-  mutate(qx = dx / lx)|> 
+  mutate(qx = dx / lx) |> 
   select(sex, age, qx) |> 
   # add metadata for joining to HRS
   mutate(source = "HMD",
@@ -224,7 +228,9 @@ hmd_comparison |>
 
 We standardized column names and variable definitions, so we're good to merge with a simple row-bind. We do it this way, because I'll want separate lines, and these need to be mappable (`disab_level`).
 ```{r}
-hrs_mort_check <- hrs_mort |> bind_rows(hmd_comparison)
+hrs_mort_check <- 
+  hrs_mort |> 
+  bind_rows(hmd_comparison)
 ```
 
 Now make the comparison plot; we filter to ages 60-95 to not be distracted by the random noise outside these ages.
@@ -235,7 +241,8 @@ hrs_mort_check |>
   ggplot(aes(x = age, y = qx, color = disab_level))+
   geom_line() +
   facet_wrap(~sex) +
-  scale_y_log10()
+  scale_y_log10() +
+  theme_minimal()
 ```
 
 Not bad!, we see the general-population mortality falling between the health-specific mortality, and we see the general population move from health to unhealthy mortality gradually over age, just as we'd image the prevalence-weighted average to do. This is an illustration of one of Vaupel's Ruses <https://www.jstor.org/stable/pdf/2683925.pdf>, but found out in nature.
