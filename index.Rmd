@@ -40,31 +40,17 @@ This index is to be updated as materials are finalized. It's more for posterity 
 
 [Session 1](Session1) (Monday, 13 Nov)
 
-1. [About me](Session1#about-me)
-2. [About this module](Session1#about-this-module)
-3. [Rmarkdown basics](Session1#rmarkdown-basics)
-4. [Tidyverse basics](Session1#tidy-data)
-5. [ggplot2 intro with gapminder](Session1#basic-ggplot2-with-the-gapminder-data)
-6. [dplyr intro](Session1#basic-dplyr)
-7. [UN fertility example](Session1#examples)
+In this session we cover the basics of Rmarkdown, and we practice `tidyverse` data handling functions on the `gapminder` dataset, including `mutate()`, `summarize()`, and `group_by()`. We also get in some good `ggplot2` practice.
 
+[Session 2](Session2) (Tuesday, 14 Nov)
 
-<!-- [Session 2](Session2) (Tuesday, 8 Nov)  -->
+Lots more practice with `group_by()`, `mutate()`, `summarize()`. We also see how to read in and tabulate from fixed-width files (USA natality file), and we make semi-sophisticated `ggplot()` figures from it. 
 
-<!-- 1. [Introduction](Session2#introduction)  -->
-<!-- 2. [Reading a fixed width file](Session2#reading-a-fixed-width-file)  -->
-<!-- 3. [Redistribute missing time of day](Session2#redistribute-missing-time-of-day)  -->
-<!-- 4. [Visualize it: surface](Session2#visualize-it-surface)  -->
-<!-- 5. [Visualize it: ridgeplot](Session2#visualize-it-ridgeplot)  -->
+[Session 3](Session3) (Wednesday, 15 Nov)
 
-<!-- [Session 3](Session3) (Wednesday, 9 Nov)  -->
+We cover data reshaping on the example of panel data (student request). First we practice functions on the `gapminder` data, then we move to a partially concocted HRS data example. We end up calculating transition probabilities for a multistate health model. We then smooth them, then we compare mortality estimates by health status with the HMD pattern.
 
-<!-- 1. [Introduction](Session3#introduction) -->
-<!-- 2. [Prepare World Values Survey data](Session3#world-value-survey-wvs) -->
-<!-- 3. [Prepare WPP data](Session3#world-population-prospects-wpp) -->
-<!-- 4. [Join datasets](Session3#the-join) -->
-<!-- 5. [Cleaning & Fun](Session3#final-cleaning-and-fun) -->
+[Session 4] (Thursday, 16 Nov)
+In this session we improvised code for deterministic data merging, there is not yet a handout for this. We harmonized and merged health prevalence data from Eurostat with population counts from the World Population Prospects. The lesson is that most of the work of merging is in the harmonization stage. The merge part is straightforward, just figure out if you need a `left_join()`, `right_join()`, `inner_join()`, `full_join()`, `anti_join()`, or `cross_join` :-)
 
-
-<!-- Session 4 (Thursday, 10 Nov) is for doing exercises and the assignment. -->
 
