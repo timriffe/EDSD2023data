@@ -9,7 +9,6 @@ author: |
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
 date: "13 Nov, 2023"
 output:
-  pdf_document: default
   html_document:
     number_sections: yes
     toc: no
