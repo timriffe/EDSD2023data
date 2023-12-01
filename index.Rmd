@@ -9,6 +9,7 @@ author: |
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
 date: "13 Nov, 2023"
 output:
+  pdf_document: default
   html_document:
     number_sections: yes
     toc: no
@@ -43,11 +44,11 @@ In this session we cover the basics of Rmarkdown, and we practice `tidyverse` da
 
 [Session 2](Session2) (Tuesday, 14 Nov)
 
-Lots more practice with `group_by()`, `mutate()`, `summarize()`. We also see how to read in and tabulate from fixed-width files (USA natality file), and we make semi-sophisticated `ggplot()` figures from it. 
+Lots more practice with `group_by()`, `mutate()`, `summarize()`. We also see how to read in and tabulate from fixed-width files `read_fwf()` (USA natality file), and we make semi-sophisticated `ggplot()` figures from it. 
 
 [Session 3](Session3) (Wednesday, 15 Nov)
 
-We cover data reshaping on the example of panel data (student request). First we practice functions on the `gapminder` data, then we move to a partially concocted HRS data example. We end up calculating transition probabilities for a multistate health model. We then smooth them, then we compare mortality estimates by health status with the HMD pattern.
+We cover data reshaping on the example of panel data (student request). First we practice functions such as `pivot_longer()` and `pivot_wider()` on the `gapminder` data, then we move to a more complex HRS data example. We end up calculating transition probabilities for a multistate health model, then smooth them, then we compare mortality estimates by health status with the HMD pattern.
 
 [Session 4] (Thursday, 16 Nov)
 In this session we improvised code for deterministic data merging, there is not yet a handout for this. We harmonized and merged health prevalence data from Eurostat with population counts from the World Population Prospects. The lesson is that most of the work of merging is in the harmonization stage. The merge part is straightforward, just figure out if you need a `left_join()`, `right_join()`, `inner_join()`, `full_join()`, `anti_join()`, or `cross_join` :-)
