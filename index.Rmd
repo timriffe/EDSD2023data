@@ -9,6 +9,7 @@ author: |
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
 date: "13 Nov, 2023"
 output:
+  pdf_document: default
   html_document:
     number_sections: no
     toc: no
@@ -49,7 +50,7 @@ Lots more practice with `group_by()`, `mutate()`, `summarize()`. We also see how
 
 We cover data reshaping on the example of panel data (student request). First we practice functions such as `pivot_longer()` and `pivot_wider()` on the `gapminder` data, then we move to a more complex HRS data example. We end up calculating transition probabilities for a multistate health model, then smooth them, then we compare mortality estimates by health status with the HMD pattern.
 
-[Session 4] (Thursday, 16 Nov)
+[Session 4](Session4notes) (Thursday, 16 Nov)
 In this session we improvised code for deterministic data merging, there is not yet a handout for this. We harmonized and merged health prevalence data from Eurostat with population counts from the World Population Prospects. The lesson is that most of the work of merging is in the harmonization stage. The merge part is straightforward, just figure out if you need a `left_join()`, `right_join()`, `inner_join()`, `full_join()`, `anti_join()`, or `cross_join` :-)
 
 
