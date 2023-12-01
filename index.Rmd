@@ -9,7 +9,6 @@ author: |
   | Universidad del País Vasco \& Ikerbasque (Basque Foundation for Science)
 date: "13 Nov, 2023"
 output:
-  pdf_document: default
   html_document:
     number_sections: no
     toc: no
@@ -36,7 +35,7 @@ A day will consist in interactive demonstration lasting around 3-4 hours from 9:
 
 ## Schedule 
 
-This index is to be updated as materials are finalized. It's more for posterity than a prospective syllabus.
+This index has been updated after materials were finalized.
 
 [Session 1](Session1) (Monday, 13 Nov)
 
