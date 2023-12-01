@@ -10,7 +10,7 @@ author: |
 date: "13 Nov, 2023"
 output:
   html_document:
-    number_sections: yes
+    number_sections: no
     toc: no
 params:
   output_dir: "../EDSD2023data/docs"
